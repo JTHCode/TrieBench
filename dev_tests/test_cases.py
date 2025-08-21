@@ -13,7 +13,7 @@ from typing import Iterable
 # Import the implementation under test
 # ------------------------------------------------------------------------------
 try:
-    from ..tries.standard_trie import Trie  # adjust if your file/module name differs
+    from tries.standard_trie import Trie  # adjust if your file/module name differs
 except Exception as e:
     print("[FAIL] Could not import Trie from standard_trie.py")
     print("       Import error:", repr(e))
