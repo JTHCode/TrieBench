@@ -9,7 +9,7 @@ deploymentTarget = "autoscale"
 run = ["streamlit", "run", "app.py", "--server.port", "5000"]
 
 [workflows]
-runButton = "Project"
+runButton = "Run Test Cases"
 
 [[workflows.workflow]]
 name = "Project"
@@ -31,6 +31,19 @@ waitForPort = 5000
 
 [workflows.workflow.metadata]
 outputType = "webview"
+
+[[workflows.workflow]]
+name = "Run Test Cases"
+mode = "sequential"
+author = 42848745
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd dev_tests"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 test_cases.py"
 
 [[ports]]
 localPort = 5000
