@@ -6,9 +6,11 @@ streamlit>=1.48.1
 unittest
 os
 sys
+secrets
 string
 collections
 random
 math
 tranco
 urllib
+faker

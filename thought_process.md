@@ -17,7 +17,7 @@ ___________
   * Revise data structure code based on test case results until perfect score is achieved
   * Repeat all previous steps for Compressed Trie
 ### Test Data Creation: ###
-*Work load types: English Words✅, URLs, IP Adresses, Numeric IDs*
+*Work load types: English Words, URLs✅, IP Adresses, Numeric IDs*
   * Create test data generation in work_loads.py for a specific work load type
   * Test work load generation functions for accuracy and suitability in work_load_tests.py
   * Revise work load generation functions based on analysis of test results

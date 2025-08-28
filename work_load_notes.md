@@ -34,6 +34,4 @@ Font path sub-distribution for path generation: https://almanac.httparchive.org/
 
 
 TO DO:
-Change seperators between segments to be only '/'
-use the other seperators inside of segments
-'/'.join(segs)
+Test URL generator
