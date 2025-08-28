@@ -2,14 +2,14 @@ modules = ["python-3.11"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["cairo", "ffmpeg-full", "freetype", "ghostscript", "glibcLocales", "gobject-introspection", "gtk3", "pkg-config", "qhull", "tcl", "tk"]
+packages = ["cairo", "ffmpeg-full", "freetype", "ghostscript", "glibcLocales", "gobject-introspection", "gtk3", "pkg-config", "qhull", "tcl", "tk", "wget"]
 
 [deployment]
 deploymentTarget = "autoscale"
 run = ["streamlit", "run", "app.py", "--server.port", "5000"]
 
 [workflows]
-runButton = "Run Test Cases"
+runButton = "Test Data Generation"
 
 [[workflows.workflow]]
 name = "Project"
@@ -33,17 +33,40 @@ waitForPort = 5000
 outputType = "webview"
 
 [[workflows.workflow]]
-name = "Run Test Cases"
+name = "Standard Trie Test Cases"
 mode = "sequential"
 author = 42848745
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd dev_tests"
+args = "python dev_tests/test_cases_stndrd.py"
+
+[[workflows.workflow]]
+name = "Compressed Trie Test Cases"
+mode = "sequential"
+author = 42848745
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python3 test_cases.py"
+args = "python dev_tests/test_cases_cmprsd.py"
+
+[[workflows.workflow]]
+name = "Test Data Generation"
+mode = "sequential"
+author = 42848745
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd dev_tests && python work_load_tests.py"
+
+[[workflows.workflow]]
+name = "Work Load Tests"
+mode = "sequential"
+author = 42848745
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd dev_tests && python work_load_tests.py"
 
 [[ports]]
 localPort = 5000

@@ -317,7 +317,8 @@ class Trie:
     ----------
     O(L) where L = len(prefix).
     """
-    prefix = normalize(prefix)
+    if normalize is not None:
+      prefix = normalize(prefix)
     node = self.root
     for w in prefix:
       node = None if node.children is None else node.children.get(w)
@@ -356,13 +357,13 @@ class Trie:
     - Traversal order follows child insertion order. Sort keys in `child_iter`
       if lexicographic order is required.
     """
-    prefix_norm = normalize(prefix)
+    prefix = normalize(prefix)
     node = self.prefix_search(prefix, normalize)
     if node is None:
       return
 
     yielded = 0
-    buf = list(prefix_norm)
+    buf = list(prefix)
 
     def child_iter(n):
       if not n.children:
@@ -394,7 +395,7 @@ class Trie:
           stack.append((child, child_iter(child), len(buf)))
       except StopIteration:
           stack.pop()       
-          buf[depth:] = []   
+          buf[depth-1:] = []   
     return
     
 
