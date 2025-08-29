@@ -15,3 +15,10 @@ tranco
 urllib
 faker
 streamlit
+faker
+matplotlib
+numpy
+pandas
+plotly
+streamlit
+tranco
