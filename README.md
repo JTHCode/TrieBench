@@ -25,9 +25,12 @@ be used to help determain which data structure is optimal for a given use case.
 ### **Work Loads**: ###
 * English words
 * URL / File paths (*Very long identical prefixes*)
-* Numeric IDs / Product codes
 * IP Adresses
 -------------
+
+TODO:
+- Test URL and IP generators
+
 
 ## Credit/Sources: ##
 - List of English words used for random sampling data: https://github.com/dwyl/english-words

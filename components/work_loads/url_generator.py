@@ -138,7 +138,8 @@ def gen_paths(rng, slug_p=0.3):
     return path
     
   for _ in range(depth):
-    segs.append("".join(segment(rng, slug_p)))
+    seg_raw = "".join(segment(rng, slug_p))
+    segs.append(quote(seg_raw, safe='-_.~%'))
     slug_p += ((1 - slug_p) * 0.15)
 
   path += "/".join(segs)
