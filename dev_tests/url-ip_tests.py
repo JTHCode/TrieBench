@@ -33,7 +33,7 @@ import ipaddress
 # ================================
 # CONFIG
 # ================================
-STRICT_SCHEME = False          # accept scheme-less URLs if False
+STRICT_SCHEME = True          # accept scheme-less URLs if False
 STRICT_NO_FRAGMENTS = True     # fail if any URL has a fragment
 URL_DEFAULT_SCHEME = "http"    # used only to parse scheme-less URLs for validation
 
@@ -74,7 +74,8 @@ def fmt_pct(x, total): return "0.00%" if total == 0 else f"{(100.0 * x / total):
 # ================================
 LABEL_RE = re.compile(r"^[a-z0-9-]{1,63}$", re.IGNORECASE)
 TLD_RE = re.compile(r"^[a-z]{2,63}$", re.IGNORECASE)
-PATH_SEG_RE = re.compile(r"^[A-Za-z0-9._~!$&'()*+,;=:@%-]*$")
+# PATH_SEG_RE = re.compile(r"^[A-Za-z0-9._~!$&'()*+,;=:@-]*$")
+INVAL_PATH_CHARS = "~!$&'()*,;=:@ "
 
 COMMON_TLDS = {
     "com","org","net","io","edu","gov","co","us","uk","de","jp","fr","au","ca","nl","it","es"
@@ -113,13 +114,21 @@ def analyze_urls(urls: List[str]) -> Dict[str, any]:
         "avg_path_depth": 0.0,
         "path_depths": [],
         "examples_invalid": [],
+        'invalids': {
+            'parse_error': 0,
+            'scheme_error': 0,
+            'host_error': 0,
+            'path_error': 0,
+        }
     }
+
 
     for u in urls:
         try:
             pu = _parse_url_lenient(u)
         except Exception:
             res["invalid"] += 1
+            res['invalids']['parse_error'] += 1
             if len(res["examples_invalid"]) < 5:
                 res["examples_invalid"].append(u)
             continue
@@ -142,12 +151,23 @@ def analyze_urls(urls: List[str]) -> Dict[str, any]:
         # Path charset
         path_ok = True
         if path:
-            segs = [s for s in path.split("/") if s]
-            for seg in segs:
-                if not PATH_SEG_RE.match(unquote(seg)):
-                    path_ok = False
-                    break
-            res["path_depths"].append(len(segs))
+            if path.count('?') > 1:
+                path_ok = False
+                res['invalids']['query_error'] += 1
+            else:
+                segs = [s for s in path.split("/") if s]
+                for i, seg in enumerate(segs):
+                    if '?' in seg:
+                        if i < len(segs) - 1:
+                            path_ok = False
+                            res['invalids']['query_error'] += 1
+                        break
+                    # if not PATH_SEG_RE.match(unquote(seg)):
+                    if any(c in seg for c in INVAL_PATH_CHARS):
+                        path_ok = False
+                        res['invalids']['path_error'] += 1
+                        break
+                res["path_depths"].append(len(segs))
         else:
             res["path_depths"].append(0)
 
@@ -155,6 +175,10 @@ def analyze_urls(urls: List[str]) -> Dict[str, any]:
             res["valid"] += 1
         else:
             res["invalid"] += 1
+            if not scheme_ok:
+                res['invalids']['scheme_error'] += 1
+            if not host_ok:
+                res['invalids']['host_error'] += 1
             if len(res["examples_invalid"]) < 5:
                 res["examples_invalid"].append(u)
 
@@ -180,6 +204,10 @@ def print_url_report(analysis: Dict[str, any]):
     print(f"Total URLs: {total}")
     print(f"Valid: {OK(str(valid))}  ({fmt_pct(valid, total)})")
     print(f"Invalid: {(BAD if invalid else OK)(str(invalid))} ({fmt_pct(invalid, total)})")
+    if analysis['invalids']:
+        print(f'URL Fail Areas:')
+        for er_label, er_count in analysis['invalids'].items():
+            print(f'  {er_label.capitalize()}: {er_count}')
 
     print()
     print(HDR("Scheme distribution"))

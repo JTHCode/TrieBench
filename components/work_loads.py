@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-from work_loads.url_generator import generate_urls
-from work_loads.en_word_generator import generate_random_words, gen_words_with_prefix_freq
-
+from .work_loads_modules.url_generator import generate_urls
+from .work_loads_modules.en_word_generator import generate_random_words, gen_words_with_prefix_freq
+from .work_loads_modules.ip_generator import IPGenerator, IPConfig
 
 class WorkLoad:
     def __init__(self, seed=None):
@@ -15,4 +15,14 @@ class WorkLoad:
 
     def urls(self, num_urls):
         return generate_urls(num_urls, self.seed)
+
+    def ips(self, num_ips):
+        if num_ips <= 0:
+            raise ValueError("num_ips must be positive")
+        cfg = IPConfig(seed=self.seed)
+        gen = IPGenerator(cfg)
+        if num_ips == 1:
+            return gen.single()
+        else:
+            return gen.batch(num_ips)
         

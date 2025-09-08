@@ -17,23 +17,23 @@ ___________
   * Revise data structure code based on test case results until perfect score is achieved
   * Repeat all previous steps for Compressed Trie
 ### Test Data Creation: ###
-*Work load types: English Words, URLs✅, IP Adresses, Numeric IDs*
+*Work load types: English Words, URLs, IP Adresses*
   * Create test data generation in work_loads.py for a specific work load type
   * Test work load generation functions for accuracy and suitability in work_load_tests.py
   * Revise work load generation functions based on analysis of test results
   * Repeat the previous 3 steps for all work load types
 ### Metric Benchmark Recorders Creation: ###
 *Metrics: Node Count, Memory Usage, Average Branching Factor, Timed Operations*
-  * Implement testing functions for chosen metric in metric_analyzers.py
-  * Create and run metric_tests.py to confirm accuracy and reliability of metric tests
+  * Implement testing functions for chosen metric in metric_analyzers.py 
+  * Create and run metric_tests.py to confirm accuracy and reliability of metric tests 
   * Revise testing functions in metric_analyzers.py until the tests in metric_tests.py are passed
-  * Repeat the previous 3 steps for all metrics that will be tested
+  * Repeat the previous 3 steps for all metrics that will be tested 
 ### Benchmarks Testing Module Creation: ###
-  * Set up the metric test functions and the test data generation functions in benchmarks.py
+  * Set up the metric test functions and the work load generation functions in benchmarks.py (imported from their respective modules) 
   * Impliment the storage and format for test results as previously decided
   * Run small number of prelimenary tests from benchmarks.py to analyze output result storage
   * Decide on revisions for output result storage based on findings from prelimnary test
-  * Repeat the previous 3 steps until satisfied with the output storage and format
+  * Repeat the previous 3 steps until satisfied with the output storage and format ✅
 ### Data Visualization Creation: ###
   * Create data_visuals.py to analyze test results and output chosen data visualizations
   * Use sample data gathered from preliminary benchmarks.py test to run data_visuals.py
@@ -50,4 +50,5 @@ ______________
 ## Notes: ##
 - Using slots and lazy children assignment in Trie classes for memory efficiency
 - Using "fanout_switch" in Compressed Trie that optimizes switching from a list to a dictionary for holding children whenever the fanout switch amount is reached
-- URL generation uses realistic probablity for elements of the URL like sub domain, TLD, scheme and path; based off of data from https://w3techs.com/technologies
+- URL generation uses realistic probablity for elements of the URL like sub domain, TLD, scheme and path
+- LPC batching us is used in both trie classes to make insertion and deletion faster

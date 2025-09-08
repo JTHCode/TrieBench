@@ -1,8 +1,7 @@
 Trie vs Comperessed Trie Research App
 ===============
 This project is used to compare peformance and efficiency metrics between a **Trie** and a **Compressed Trie**. 
-Multiple different operations and metrics will be compared (see list below). The results of these tests can
-be used to help determain which data structure is optimal for a given use case.
+Multiple different operations and metrics will be compared (see list below). The results of these tests can be used to help determain which data structure is optimal for a given use case.
 
 -----------
 ## **Tests to perform**: ##
@@ -20,8 +19,13 @@ be used to help determain which data structure is optimal for a given use case.
   * Node count
   * Memory usage
   * Avergae branching factor (*Edge count // Node count)
-* Time
-  * Timed operations (*Using time.perf_counter_ns()*)
+* Timed operations (*Using time.perf_counter_ns()*)
+  * Bulk insert
+  * Bulk deletion
+  * Enumerate prefix
+  * Exact search
+  * Prefix search
+  * Full traversal/extraction
 ### **Work Loads**: ###
 * English words
 * URL / File paths (*Very long identical prefixes*)

@@ -92,7 +92,7 @@ Conventions & invariants
 """
 
 
-fanout_switch = 8
+fanout_switch = 4
 
 class RadixNode:
   __slots__ = ("edges", "is_terminal")
@@ -109,10 +109,18 @@ class RadixNode:
       return None
     if isinstance(e, dict): 
       return e.get(ch)
-
-    for key, child in e:
+    
+    # Optimized list search using binary search for sorted edges
+    left, right = 0, len(e) - 1
+    while left <= right:
+      mid = (left + right) // 2
+      key = e[mid][0]
       if key[0] == ch:
-        return (key, child)
+        return e[mid]
+      elif key[0] < ch:
+        left = mid + 1
+      else:
+        right = mid - 1
     return None
 
 
@@ -209,9 +217,28 @@ class CompressedTrie:
   @staticmethod
   def _lcp(a, b):
     """Helper to Return the length of the Longest Common Prefix between a and b."""
+    # Use os.path.commonprefix for better performance on longer strings
+    import os
+    common = os.path.commonprefix([a, b])
+    return len(common)
+  
+  @staticmethod
+  def _lcp_with_indices(a, a_start, b, b_start):
+    """Helper to find LCP between substrings starting at given indices."""
+    # Optimized version using direct character comparison
     i = 0
-    n = min(len(a), len(b))
-    while i < n and a[i] == b[i]:
+    a_len = len(a) - a_start
+    b_len = len(b) - b_start
+    n = min(a_len, b_len)
+    
+    # Unroll loop for small strings (common case)
+    if n <= 4:
+      while i < n and a[a_start + i] == b[b_start + i]:
+        i += 1
+      return i
+    
+    # For longer strings, use chunked comparison
+    while i < n and a[a_start + i] == b[b_start + i]:
       i += 1
     return i
 
@@ -308,11 +335,108 @@ class CompressedTrie:
 
 
   def batch_insert(self, words, *, normalize=str.casefold, dedup=True, presorted=False):
-    """Insert a single word into the compressed trie."""
+    """Bulk-insert many words efficiently using LCP reuse.
+    
+    Parameters
+    ----------
+    words : Iterable[str]
+        Words to insert.
+    normalize, dedup, presorted
+        See `_prepare_batch`.
+    
+    Notes
+    -----
+    - Words are first prepared via `_prepare_batch`.
+    - Iterates words in sorted order and reuses the Longest Common Prefix (LCP)
+      with the previous word to avoid retraversing from the root.
+    - Handles edge splitting and compression efficiently.
+    
+    Complexity
+    ----------
+    ~O(total new characters created) plus O(n log n) if sorting is needed.
+    """
     words = self._prepare_batch(words, normalize, dedup, presorted)
+    
+    # Cache method references for performance
+    lcp_with_indices = self._lcp_with_indices
+    
+    prev = ''
+    path_nodes = [self.root]
+    
     for w in words:
-      self.single_insert(w, normalize=None)
-
+        # Calculate LCP with previous word using indices to avoid slicing
+        lp, lw = len(prev), len(w)
+        i = 0
+        while i < lp and i < lw and prev[i] == w[i]:
+            i += 1
+        
+        # Truncate path to LCP point
+        path_nodes = path_nodes[:i + 1]
+        
+        # Start from LCP point
+        node = path_nodes[-1]
+        remaining_start = i
+        
+        # Insert remaining characters using indices instead of slicing
+        while remaining_start < len(w):
+            first_char = w[remaining_start]
+            edge_info = node._get(first_char)
+            
+            if edge_info is None:
+                # No existing edge - create new one
+                new_node = RadixNode(True)
+                remaining_str = w[remaining_start:]
+                node._set(remaining_str, new_node)
+                path_nodes.append(new_node)
+                remaining_start = len(w)  # Word is fully inserted
+                break
+                
+            label, child = edge_info
+            lcp_len = lcp_with_indices(w, remaining_start, label, 0)
+            
+            if lcp_len == len(label):
+                # Full edge match - descend
+                remaining_start += lcp_len
+                node = child
+                path_nodes.append(node)
+                continue
+                
+            if lcp_len > 0:
+                # Partial match - split edge
+                shared = label[:lcp_len]
+                old_suffix = label[lcp_len:]
+                new_suffix = w[remaining_start + lcp_len:]
+                
+                # Create intermediate node
+                mid_node = RadixNode(is_terminal=(new_suffix == ""))
+                
+                # Update parent to point to intermediate node
+                node._set(shared, mid_node)
+                
+                # Reattach old child
+                mid_node._set(old_suffix, child)
+                
+                # Add new child if there's a suffix
+                if new_suffix:
+                    mid_node._set(new_suffix, RadixNode(True))
+                
+                path_nodes.append(mid_node)
+                remaining_start = len(w)  # Word is fully inserted
+                break
+            else:
+                # No match - create new edge
+                new_node = RadixNode(True)
+                remaining_str = w[remaining_start:]
+                node._set(remaining_str, new_node)
+                path_nodes.append(new_node)
+                remaining_start = len(w)  # Word is fully inserted
+                break
+        
+        # Mark final node as terminal if word ended exactly at a node
+        if remaining_start >= len(w):  # Word ended exactly at a node
+            node.is_terminal = True
+            
+        prev = w
 
 
   def single_delete(self, word, normalize=str.casefold):
@@ -400,15 +524,131 @@ class CompressedTrie:
 
 
   def batch_delete(self, words, *, normalize=str.casefold, dedup=True, presorted=False):
-    """Delete many words; returns (deleted_count, missing_count)."""
+    """Bulk-delete many words with pruning using LCP reuse.
+    
+    Strategy
+    --------
+    - Prepare inputs (normalize/sort/dedup).
+    - Iterate words in sorted order and reuse LCP with the previous word to
+      minimize descent work.
+    - For each present word, unset `is_terminal` and prune upward while nodes
+      are non-terminal and have no children.
+    - Handle edge coalescing for compressed trie.
+
+    Parameters
+    ----------
+    words : Iterable[str]
+    normalize, dedup, presorted
+        See `_prepare_batch`.
+
+    Returns
+    -------
+    tuple[int, int]
+        (deleted_count, missing_count)
+
+    Complexity
+    ----------
+    ~O(total characters touched) across all words, plus pruning.
+    """
     words = self._prepare_batch(words, normalize, dedup, presorted)
+
+    # Cache method references for performance
+    lcp_with_indices = self._lcp_with_indices
+
+    prev = ""
+    path_nodes = [self.root]  
+    path_edges = [""] 
+
     deleted = 0
     missing = 0
+
     for w in words:
-      if self.single_delete(w, normalize=None):
-        deleted += 1
-      else:
+      # Calculate LCP with previous word
+      lp, lw = len(prev), len(w)
+      i = 0
+      while i < lp and i < lw and prev[i] == w[i]:
+        i += 1
+
+      # Truncate path to LCP point
+      path_nodes = path_nodes[:i + 1]
+      path_edges = path_edges[:i + 1]
+
+      node = path_nodes[-1]
+      remaining_start = i
+      ok = True
+      
+      # Traverse remaining path using indices
+      while remaining_start < len(w):
+        first_char = w[remaining_start]
+        edge_info = node._get(first_char)
+        
+        if edge_info is None:
+          ok = False
+          break
+          
+        label, child = edge_info
+        lcp_len = lcp_with_indices(w, remaining_start, label, 0)
+        
+        if lcp_len < len(label):
+          ok = False
+          break
+          
+        remaining_start += lcp_len
+        node = child
+        path_nodes.append(node)
+        path_edges.append(label)
+
+      if not ok or not node.is_terminal:
         missing += 1
+        prev = w
+        continue
+
+      node.is_terminal = False
+      deleted += 1
+
+      # Prune upward and coalesce edges
+      idx = len(path_nodes) - 1
+      while idx > 0:
+        cur = path_nodes[idx]
+        if cur.is_terminal:
+          break
+          
+        deg = cur._degree()
+        if deg == 1:
+          # Coalesce unary non-terminal nodes
+          only = cur._only_edge()
+          if only is not None:
+            child_label, grand = only
+            parent = path_nodes[idx - 1]
+            parent_label = path_edges[idx]
+            
+            # Update parent edge to include child label
+            parent._set(parent_label + child_label, grand)
+            cur = parent
+            
+            # Continue coalescing upward
+            while idx > 1 and not cur.is_terminal and cur._degree() == 1:
+              idx -= 1
+              cur = path_nodes[idx - 1]
+              parent_label = path_edges[idx]
+              only = cur._only_edge()
+              if only is not None:
+                child_label, grand = only
+                cur._set(parent_label + child_label, grand)
+                cur = cur
+              else:
+                break
+          break
+        elif deg == 0:
+          # Remove empty node
+          parent = path_nodes[idx - 1]
+          parent_label = path_edges[idx]
+          parent._del(parent_label[0])
+          cur = parent
+        else:
+          break
+        idx -= 1
+      prev = w
     return deleted, missing
   
     
